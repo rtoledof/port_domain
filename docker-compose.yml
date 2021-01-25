@@ -1,0 +1,64 @@
+version: "3.5"
+
+services:
+  db:
+    container_name: port_db_server
+    image: mariadb
+    ports:
+    - "3309:3306"
+    environment:
+      MYSQL_USER: golang
+      MYSQL_PASSWORD: golang
+      MYSQL_DATABASE: port_domain
+      MYSQL_ROOT_PASSWORD: admin
+    volumes:
+      - ./docker/data:/var/lib/mysql
+      - ./docker/log:/var/log/mysql
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: on-failure
+  test:
+    container_name: port_grpc_server_test
+    image: library/golang:1.15-alpine
+    environment:
+      - GO111MODULE=on
+      - CGO_ENABLED=0
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: go test ./...
+  client:
+    container_name: port_grpc_client
+    image: library/golang:1.15-alpine
+    environment:
+      - GO111MODULE=on
+      - CGO_ENABLED=0
+      - GRPC-HOST=server
+      - GRPC-PORT=3000
+      - FILE-PATH=/app/ports.json
+    volumes:
+      - ./:/app
+      - ./docker/ports.json:/app/ports.json
+    working_dir: /app
+    command: go run cmd/client/main.go
+    depends_on:
+      - server
+  server:
+    container_name: port_grpc_server
+    image: library/golang:1.15-alpine
+    environment:
+      - GO111MODULE=on
+      - CGO_ENABLED=0
+      - GRPC-PORT=3000
+      - DB-HOST=db
+      - DB-PORT=3306
+      - DB-USER=golang
+      - DB-PASSWORD=golang
+      - DB_NAME=port_domain
+    volumes:
+      - ./:/app
+      - ./docker/ports.json:/app/ports.json
+    working_dir: /app
+    restart: unless-stopped
+    command: go run cmd/server/main.go
+    depends_on:
+      - db

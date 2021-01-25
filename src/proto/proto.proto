@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+option go_package="portdb.io/grpc";
+
+package grpc;
+
+service PortDomainService {
+    rpc Store (CreateRequest) returns (Port);
+    rpc Fetch (FetchRequest) returns (Port);
+}
+
+message Port {
+    string name = 1;
+    string city = 2;
+    string country = 3;
+    repeated string alias = 4;
+    repeated string regions = 5;
+    repeated float coordinates = 6;
+    string province = 7;
+    string timezone = 8;
+    repeated string unlocs = 9;
+    string code = 10;
+}
+
+message CreateRequest {
+    string name = 1;
+    string city = 2;
+    string country = 3;
+    repeated string alias = 4;
+    repeated string regions = 5;
+    repeated float coordinates = 6;
+    string province = 7;
+    string timezone = 8;
+    repeated string unlocs = 9;
+    string code = 10;
+}
+
+message FetchRequest {
+    string code = 1;
+}
+
