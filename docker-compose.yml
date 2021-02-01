@@ -60,5 +60,7 @@ services:
     working_dir: /app
     restart: unless-stopped
     command: go run cmd/server/main.go
+    ports:
+    - "3000:3000"
     depends_on:
       - db

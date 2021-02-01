@@ -1,18 +1,16 @@
 package client
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
-	"regexp"
-	"strings"
 	"time"
 
 	"portdb.io/src/proto/grpc"
 )
-
-var re = regexp.MustCompile(`.*\"(?P<key>[A-Z]+)\"\:\s(?P<body>\{(.*\s*)((\"\w*\"(\:\s.*)*\s*)|((\-)*\d+(\.\d+).*\s*)|\].*\s*)+\})`)
 
 type client struct {
 	cli grpc.PortDomainServiceClient
@@ -31,33 +29,34 @@ func (c *client) Fetch(req *grpc.FetchRequest) (*grpc.Port, error) {
 }
 
 func (c *client) Decoder(reader io.Reader) error {
-	buf := make([]byte, 1024)
-	var str string
-	for {
-		n, err := reader.Read(buf)
+	buf := bufio.NewReader(reader)
+	dec := json.NewDecoder(buf)
+
+	t, err := dec.Token()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%T: %v\n", t, t)
+
+	for dec.More() {
+		t, err := dec.Token()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%T: %v\n", t, t)
+		var msg grpc.CreateRequest
+		err = dec.Decode(&msg)
 		if err != nil {
 			if err != io.EOF {
-				log.Fatalln(err)
+				log.Fatal(err)
 			}
-			break
+			return nil
 		}
-		str += string(buf[0:n])
-		match := re.FindAllStringSubmatch(str, -1)
-		if match != nil {
-			for _, v := range match {
-				var req grpc.CreateRequest
-				dec := json.NewDecoder(strings.NewReader(v[2]))
-				str = strings.Replace(str, v[2], "", 1)
-				if err := dec.Decode(&req); err != nil {
-					log.Println(err)
-					continue
-				}
-				if _, err := c.Store(&req); err != nil {
-					return err
-				}
-			}
+		if _, err := c.Store(&msg); err != nil {
+			return err
 		}
 	}
+
 	return nil
 }
 
